@@ -488,154 +488,167 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!formattedApiQuery) {
                 throw new Error("Invalid Bible query. Please try 'John 3:16' or 'Genesis 1'.");
             }
+            
+            // --- DEBUGGING LOG FOR API QUERY ---
+            console.log("API Query being sent:", formattedApiQuery, "Translation:", translation);
 
             const response = await fetch(`https://bible-api.com/${formattedApiQuery}?translation=${translation}`);
-
+            
             if (!response.ok) {
                 if (response.status === 404) {
                     throw new Error(`Verse not found for query "${query}". Please check the spelling or reference.`);
                 }
                 throw new Error(`HTTP error! status: ${response.status} for query: "${query}"`);
-            }
+                }
 
-            const data = await response.json();
+                const data = await response.json();
 
-            if (data.verses && data.verses.length > 0) {
-                let resultHtml = `<h2>${data.reference} (${data.translation_name ? data.translation_name.toUpperCase() : translation.toUpperCase()})</h2>`;
-                data.verses.forEach(verse => {
-                    resultHtml += `<p><strong>${verse.verse}</strong> ${verse.text}</p>`;
-                });
-                answerDisplay.innerHTML = resultHtml;
-            } else {
-                answerDisplay.innerHTML = `<p style="text-align: center;">No Bible verses found for "${query}". Please try a more specific reference like "John 3:16" or "Gen 1:1".</p>`;
+                if (data.verses && data.verses.length > 0) {
+                    let resultHtml = `<h2>${data.reference} (${data.translation_name ? data.translation_name.toUpperCase() : translation.toUpperCase()})</h2>`;
+                    data.verses.forEach(verse => {
+                        resultHtml += `<p><strong>${verse.verse}</strong> ${verse.text}</p>`;
+                    });
+                    answerDisplay.innerHTML = resultHtml;
+                } else {
+                    answerDisplay.innerHTML = `<p style="text-align: center;">No Bible verses found for "${query}". Please try a more specific reference like "John 3:16" or "Gen 1:1".</p>`;
+                    currentBibleBookName = '';
+                    currentBibleChapter = 0;
+                }
+
+            } catch (error) {
+                console.error('Error fetching Bible verse:', error);
+                answerDisplay.innerHTML = `<p style="text-align: center; color: red;">Error: ${error.message}. Please check your query or try again later.</p>`;
                 currentBibleBookName = '';
                 currentBibleChapter = 0;
             }
-
-        } catch (error) {
-            console.error('Error fetching Bible verse:', error);
-            answerDisplay.innerHTML = `<p style="text-align: center; color: red;">Error: ${error.message}. Please check your query or try again later.</p>`;
-            currentBibleBookName = '';
-            currentBibleChapter = 0;
         }
-    }
 
-    // Main search button event listener
-    if (searchButton) {
-        searchButton.addEventListener('click', () => {
-            const query = questionInput.value.trim();
-            if (query) {
-                fetchBibleVerse(query);
-            } else {
-                answerDisplay.innerHTML = '<p style="text-align: center;">Please enter a Bible verse or topic to search.</p>';
+        // Main search button event listener
+        if (searchButton) {
+            searchButton.addEventListener('click', () => {
+                const query = questionInput.value.trim();
+                if (query) {
+                    fetchBibleVerse(query);
+                } else {
+                    answerDisplay.innerHTML = '<p style="text-align: center;">Please enter a Bible verse or topic to search.</p>';
+                }
+            });
+        }
+
+        // --- Hotlinking Verses in Devotional (and any future loaded content) ---
+        function makeVersesClickable() {
+            const verseRegex = /(\b(?:[123]\s?[A-Z][a-z]+|[A-Z][a-z]+)\s+\d+(?::\d+(?:-\d+)?)?)(?:\s+(?:NASB95|KJV|ASV|WEB))?\b/gi;
+            
+            const contentDiv = answerDisplay;
+            let htmlContent = contentDiv.innerHTML;
+
+            let newHtmlContent = htmlContent.replace(verseRegex, (match) => {
+                if (/<[^>]+>/.test(match)) {
+                    return match;
+                }
+                return `<a href="#" class="devotional-verse-link" data-verse="${match}">${match}</a>`;
+            });
+            contentDiv.innerHTML = newHtmlContent;
+        }
+
+        answerDisplay.addEventListener('click', (event) => {
+            const link = event.target.closest('.devotional-verse-link');
+            if (link) {
+                event.preventDefault();
+                const verseQuery = link.dataset.verse;
+                openVerseInMainApp(verseQuery);
             }
         });
-    }
 
-    // --- Hotlinking Verses in Devotional (and any future loaded content) ---
-    function makeVersesClickable() {
-        const verseRegex = /(\b(?:[123]\s?[A-Z][a-z]+|[A-Z][a-z]+)\s+\d+(?::\d+(?:-\d+)?)?)(?:\s+(?:NASB95|KJV|ASV|WEB))?\b/gi;
+        async function openVerseInMainApp(verseQuery) {
+            const cleanedQuery = verseQuery.replace(/\s+(NASB95|KJV|ASV|WEB)$/i, '').trim(); 
+            await fetchBibleVerse(cleanedQuery);
+        }
 
-        const contentDiv = answerDisplay;
-        let htmlContent = contentDiv.innerHTML;
-
-        let newHtmlContent = htmlContent.replace(verseRegex, (match) => {
-            if (/<[^>]+>/.test(match)) {
-                return match;
+        // --- BIBLE CHAPTER NAVIGATION FUNCTIONS ---
+        async function goToNextBibleChapter() {
+            if (!currentBibleBookName || currentBibleChapter === 0) {
+                alert('Please search for a Bible verse or chapter first to enable chapter navigation.');
+                return;
             }
-            return `<a href="#" class="devotional-verse-link" data-verse="${match}">${match}</a>`;
-        });
-        contentDiv.innerHTML = newHtmlContent;
-    }
 
-    answerDisplay.addEventListener('click', (event) => {
-        const link = event.target.closest('.devotional-verse-link');
-        if (link) {
-            event.preventDefault();
-            const verseQuery = link.dataset.verse;
-            openVerseInMainApp(verseQuery);
-        }
-    });
+            const currentBookIndex = bibleBooks.findIndex(book => book.name === currentBibleBookName);
+            if (currentBookIndex === -1) {
+                alert('Current book not found in Bible data for navigation.');
+                return;
+            }
 
-    async function openVerseInMainApp(verseQuery) {
-        const cleanedQuery = verseQuery.replace(/\s+(NASB95|KJV|ASV|WEB)$/i, '').trim(); 
-        await fetchBibleVerse(cleanedQuery);
-    }
+            let nextChapter = currentBibleChapter + 1;
+            let nextBookIndex = currentBookIndex;
 
-    // --- BIBLE CHAPTER NAVIGATION FUNCTIONS ---
-    async function goToNextBibleChapter() {
-        if (!currentBibleBookName || currentBibleChapter === 0) {
-            alert('Please search for a Bible verse or chapter first to enable chapter navigation.');
-            return;
-        }
-
-        const currentBookIndex = bibleBooks.findIndex(book => book.name === currentBibleBookName);
-        if (currentBookIndex === -1) {
-            alert('Current book not found in Bible data for navigation.');
-            return;
-        }
-
-        let nextChapter = currentBibleChapter + 1;
-        let nextBookIndex = currentBookIndex;
-
-        if (nextChapter > bibleBooks[currentBookIndex].chapters) {
-            nextBookIndex++;
-            nextChapter = 1;
-
-            if (nextBookIndex >= bibleBooks.length) {
-                alert('You are at the end of the Bible! Looping to Genesis 1.');
-                nextBookIndex = 0;
+            if (nextChapter > bibleBooks[currentBookIndex].chapters) {
+                nextBookIndex++;
                 nextChapter = 1;
+
+                if (nextBookIndex >= bibleBooks.length) {
+                    alert('You are at the end of the Bible! Looping to Genesis 1.');
+                    nextBookIndex = 0;
+                    nextChapter = 1;
+                }
             }
+
+            const nextBookName = bibleBooks[nextBookIndex].name;
+            const query = `${nextBookName} ${nextChapter}`;
+            await fetchBibleVerse(query);
         }
 
-        const nextBookName = bibleBooks[nextBookIndex].name;
-        const query = `${nextBookName} ${nextChapter}`;
-        await fetchBibleVerse(query);
-    }
-
-    async function goToPreviousBibleChapter() {
-        if (!currentBibleBookName || currentBibleChapter === 0) {
-            alert('Please search for a Bible verse or chapter first to enable chapter navigation.');
-            return;
-        }
-
-        const currentBookIndex = bibleBooks.findIndex(book => book.name === currentBibleBookName);
-        if (currentBookIndex === -1) {
-            alert('Current book not found in Bible data for navigation.');
-            return;
-        }
-
-        let prevChapter = currentBibleChapter - 1;
-        let prevBookIndex = currentBookIndex;
-
-        if (prevChapter < 1) {
-            prevBookIndex--;
-
-            if (prevBookIndex < 0) {
-                alert('You are at the beginning of the Bible! Looping to Revelation last chapter.');
-                prevBookIndex = bibleBooks.length - 1;
+        async function goToPreviousBibleChapter() {
+            if (!currentBibleBookName || currentBibleChapter === 0) {
+                alert('Please search for a Bible verse or chapter first to enable chapter navigation.');
+                return;
             }
-            prevChapter = bibleBooks[prevBookIndex].chapters;
+
+            const currentBookIndex = bibleBooks.findIndex(book => book.name === currentBibleBookName);
+            if (currentBookIndex === -1) {
+                alert('Current book not found in Bible data for navigation.');
+                return;
+            }
+
+            let prevChapter = currentBibleChapter - 1;
+            let prevBookIndex = currentBookIndex;
+
+            if (prevChapter < 1) {
+                prevBookIndex--;
+
+                if (prevBookIndex < 0) {
+                    alert('You are at the beginning of the Bible! Looping to Revelation last chapter.');
+                    prevBookIndex = bibleBooks.length - 1;
+                }
+                prevChapter = bibleBooks[prevBookIndex].chapters;
+            }
+
+            const prevBookName = bibleBooks[prevBookIndex].name;
+            const query = `${prevBookName} ${prevChapter}`;
+            await fetchBibleVerse(query);
         }
 
-        const prevBookName = bibleBooks[prevBookIndex].name;
-        const query = `${prevBookName} ${prevChapter}`;
-        await fetchBibleVerse(query);
-    }
+        // --- Initial Setup Calls ---
+        populateDaySelect(); // Populate month and day dropdowns for devotional
+        yearDisplay.textContent = new Date().getFullYear(); // Set the current year
+        
+        // Set initial values for month and day selects to today's date
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1; // Month is 0-indexed (Jan is 0)
+        const currentDay = today.getDate();
+        monthSelect.value = currentMonth;
+        populateDaySelect(); // Repopulate daySelect for the current month after setting month
+        daySelect.value = currentDay;
 
-    // --- Initial Setup Calls ---
-    populateDaySelect(); // Populate month and day dropdowns for devotional
-    yearDisplay.textContent = new Date().getFullYear(); // Set the current year
+        // Start the app on the Bible search view initially
+        resetToBibleAppView(); 
+    });
+    ```
 
-    // Set initial values for month and day selects to today's date
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1; // Month is 0-indexed (Jan is 0)
-    const currentDay = today.getDate();
-    monthSelect.value = currentMonth;
-    populateDaySelect(); // Repopulate daySelect for the current month after setting month
-    daySelect.value = currentDay;
+---
 
-    // Start the app on the Bible search view initially
-    resetToBibleAppView(); 
-});
+**After you've saved this `script.js` file, please remember to:**
+
+1.  Ensure your `index.html` file contains the **latest complete HTML code** I provided.
+2.  **Perform a hard refresh** of your browser (Ctrl+Shift+R or Cmd+Shift+R on Mac) to make sure all files are loaded correctly.
+
+Once that's done, please type `John 3:15` into the search bar, hit Search, and then **copy and paste any output from your browser's Developer Console (F12, then "Console" tab)**. This will help us get that specific search working!
