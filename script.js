@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const darkModeToggle = document.getElementById('darkModeToggle');
     const decreaseFont = document.getElementById('decreaseFont');
     const increaseFont = document.getElementById('increaseFont');
+    const appTitle = document.querySelector('.top-bar h1'); // Reference to the H1 title
 
     // Devotional Date Selectors (from the HTML you added)
     const monthSelect = document.getElementById('monthSelect');
@@ -31,13 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // NEW: Elements to toggle visibility based on app mode
     const bibleControlElements = [
         document.getElementById('combinedPill'), // Book/Chapter/Version selectors
-        questionInput,
-        searchButton,
-        // If your HTML has a container div around questionInput/searchButton, add it here (e.g., document.getElementById('search-container'))
+        document.querySelector('.search-container'), // The div containing questionInput and searchButton
+        // You can add more Bible-specific elements here if they need to hide/show
     ].filter(Boolean); // Filter out any null elements if IDs are missing in HTML
 
     const devotionalControlElements = [
         document.getElementById('datePill'), // Month/Day/Year selectors
+        // You can add more Devotional-specific elements here
     ].filter(Boolean);
 
 
@@ -84,8 +85,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentBibleChapter = 0;
     let currentBibleTranslation = 'kjv';
 
-    // --- Function to toggle visibility of control elements ---
+    // --- Function to toggle visibility of control elements and update title ---
     function toggleAppMode(isBibleMode) {
+        // Update main title
+        if (appTitle) {
+            if (isBibleMode) {
+                appTitle.innerHTML = '<span class="orange-text">AVA</span> Bible App';
+            } else {
+                appTitle.innerHTML = '<span class="orange-text">AVA</span> Daily Devotional';
+            }
+        }
+
         // Hide/show Bible-specific controls
         bibleControlElements.forEach(el => {
             if (el) el.style.display = isBibleMode ? '' : 'none'; // Use empty string to revert to default display
@@ -99,15 +109,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // These buttons' roles change depending on the mode
         if (prevChapterTop) {
             prevChapterTop.textContent = isBibleMode ? 'Previous Chapter' : 'Previous Day';
+            // Ensure only one listener is active at a time
             prevChapterTop.removeEventListener('click', goToPreviousBibleChapter);
             prevChapterTop.removeEventListener('click', prevDay);
             prevChapterTop.addEventListener('click', isBibleMode ? goToPreviousBibleChapter : prevDay);
+            prevChapterTop.style.display = 'block'; // Ensure it's visible in both modes
         }
         if (nextChapterTop) {
             nextChapterTop.textContent = isBibleMode ? 'Next Chapter' : 'Next Day';
             nextChapterTop.removeEventListener('click', goToNextBibleChapter);
             nextChapterTop.removeEventListener('click', nextDay);
             nextChapterTop.addEventListener('click', isBibleMode ? goToNextBibleChapter : nextDay);
+            nextChapterTop.style.display = 'block'; // Ensure it's visible in both modes
         }
 
         // Handle lower chapter navigation buttons if they exist and you want them to also toggle
@@ -116,13 +129,16 @@ document.addEventListener('DOMContentLoaded', () => {
             prevChapter.removeEventListener('click', goToPreviousBibleChapter);
             prevChapter.removeEventListener('click', prevDay);
             prevChapter.addEventListener('click', isBibleMode ? goToPreviousBibleChapter : prevDay);
+            prevChapter.style.display = 'block';
         }
         if (nextChapter) {
             nextChapter.textContent = isBibleMode ? 'Next Chapter' : 'Next Day';
             nextChapter.removeEventListener('click', goToNextBibleChapter);
             nextChapter.removeEventListener('click', nextDay);
             nextChapter.addEventListener('click', isBibleMode ? goToNextBibleChapter : nextDay);
+            nextChapter.style.display = 'block';
         }
+
 
         // Hide share options when changing modes
         if (shareOptionsTop) shareOptionsTop.style.display = 'none';
