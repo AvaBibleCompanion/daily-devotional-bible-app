@@ -643,32 +643,3 @@ document.addEventListener('DOMContentLoaded', () => {
         resetToBibleAppView(); 
     });
     ```
-
----
-
-### **Action Steps:**
-
-1.  **Copy this entire code block.**
-2.  **Open your `script.js` file** in your code editor.
-3.  **Replace *all* its existing content** with the code you just copied.
-4.  **Save the `script.js` file.**
-5.  **Perform a hard refresh** of your browser (Ctrl+Shift+R or Cmd+Shift+R on Mac) where your `index.html` is open. This is crucial!
-
-After saving and hard refreshing, please:
-
-* **Type `John 3:15` into the search bar** and hit Search.
-* **Copy and paste *all* messages that appear in your browser's Developer Console (F12, then "Console" tab)**. This will tell us the exact query string being sent to the API.
-
----
-
-### **Regarding other Bible versions:**
-
-That's an excellent feature to consider! However, I strongly recommend we **finish getting the current core functionality (like searching for "John 3:15" and the "Next Chapter" navigation) working reliably first.**
-
-Adding more Bible versions will involve:
-
-1.  **Verifying API Support:** Ensuring that `bible-api.com` (or any other API we use) actually supports those specific translations (e.g., NIV, ESV, NLT). We currently default to KJV.
-2.  **Updating `index.html`:** Adding options to the `versionSelectTop` dropdown so users can choose their preferred version.
-3.  **Modifying `script.js`:** Updating the `fetchBibleVerse` function to read the selected translation from the dropdown and use it in the API call, instead of always defaulting to KJV.
-
-It's best to resolve any lingering issues with the current version before adding more complexity. This makes debugging much easier! So, let's focus on getting "John 3:15" working perfectly first.
