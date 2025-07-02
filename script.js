@@ -6,11 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchButton = document.getElementById('searchButton'); // For the main Bible search button
     const darkModeToggle = document.getElementById('darkModeToggle');
     const decreaseFont = document.getElementById('decreaseFont');
-    const increaseFont = document('increaseFont'); // Corrected: This should be getElementById
+    const increaseFont = document.getElementById('increaseFont'); // Corrected from document.increaseFont
     const appTitle = document.querySelector('.top-bar h1'); // Reference to the H1 title
-
-    // Corrected the line above:
-    // const increaseFont = document.getElementById('increaseFont'); // This line was incorrect (missing .getElementById)
 
     // Devotional Date Selectors (from the HTML you added)
     const monthSelect = document.getElementById('monthSelect');
@@ -88,28 +85,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Function to toggle visibility of control elements and update title ---
     function toggleAppMode(isBibleMode) {
-        console.log("toggleAppMode called. isBibleMode:", isBibleMode); // Debugging log
+        console.log("toggleAppMode called. isBibleMode:", isBibleMode);
 
         // Update main title
         if (appTitle) {
             if (isBibleMode) {
                 appTitle.innerHTML = '<span class="orange-text">AVA</span> Bible App';
-                console.log("Setting title to Bible App."); // Debugging log
+                console.log("Setting title to Bible App.");
             } else {
                 appTitle.innerHTML = '<span class="orange-text">AVA</span> Daily Devotional';
-                console.log("Setting title to Daily Devotional."); // Debugging log
+                console.log("Setting title to Daily Devotional.");
             }
         } else {
-            console.error("Error: appTitle element not found! Cannot update main title."); // Debugging error
+            console.error("Error: appTitle element not found! Cannot update main title.");
         }
 
         // Hide/show Bible-specific controls
         bibleControlElements.forEach(el => {
-            if (el) el.style.display = isBibleMode ? '' : 'none'; // Use empty string to revert to default display
+            if (el) el.style.display = isBibleMode ? '' : 'none';
         });
         // Hide/show Devotional-specific controls
         devotionalControlElements.forEach(el => {
-            if (el) el.style.display = isBibleMode ? 'none' : '' ; // Hide devotional elements in Bible mode
+            if (el) el.style.display = isBibleMode ? 'none' : '' ;
         });
 
         // Update button text and event listeners for 'prevChapterTop' and 'nextChapterTop'
@@ -144,7 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
             nextChapter.style.display = 'block';
         }
 
-
         // Hide share options when changing modes
         if (shareOptionsTop) shareOptionsTop.style.display = 'none';
         if (shareOptions) shareOptions.style.display = 'none';
@@ -162,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dailyDevotionalButton.textContent = 'Daily Devotional';
         currentBibleBookName = '';
         currentBibleChapter = 0;
-        toggleAppMode(true); // Explicitly set to Bible mode, which should hide devotional controls
+        toggleAppMode(true);
     }
 
     // --- Daily Devotional Functionality ---
@@ -268,4 +264,381 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Daily Devotional Button Event Listener (Toggle Logic) ---
     dailyDevotionalButton.addEventListener('click', async () => {
-        if (dailyDev
+        if (dailyDevotionalButton.textContent === 'Daily Devotional') {
+            const today = new Date();
+            monthSelect.value = today.getMonth() + 1;
+            populateDaySelect();
+            daySelect.value = today.getDate();
+
+            await displayDevotional();
+            dailyDevotionalButton.textContent = 'Bible App';
+            toggleAppMode(false); // Set to Devotional mode (false for isBibleMode)
+        } else {
+            resetToBibleAppView(); // This will call toggleAppMode(true) internally
+        }
+    });
+
+
+    // --- Dark Mode Toggle ---
+    darkModeToggle.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+    });
+
+    // --- Font Size Controls ---
+    let currentFontSize = 16;
+
+    // Corrected the element reference for increaseFont
+    const currentDecreaseFontButton = document.getElementById('decreaseFont');
+    const currentIncreaseFontButton = document.getElementById('increaseFont');
+
+    if (currentDecreaseFontButton) {
+        currentDecreaseFontButton.addEventListener('click', () => {
+            currentFontSize = Math.max(10, currentFontSize - 2);
+            answerDisplay.style.fontSize = currentFontSize + 'px';
+        });
+    }
+
+    if (currentIncreaseFontButton) {
+        currentIncreaseFontButton.addEventListener('click', () => {
+            currentFontSize = Math.min(30, currentFontSize + 2);
+            answerDisplay.style.fontSize = currentFontSize + 'px';
+        });
+    }
+
+
+    // --- Copy Selected Verse ---
+    function copySelectedVerse() {
+        const selectedText = window.getSelection().toString();
+        if (selectedText) {
+            navigator.clipboard.writeText(selectedText)
+                .then(() => alert('Verse copied to clipboard!'))
+                .catch(err => console.error('Failed to copy text: ', err));
+        } else {
+            alert('Please select some text to copy.');
+        }
+    }
+
+    if (copySelectedTop) {
+        copySelectedTop.addEventListener('click', copySelectedVerse);
+    }
+    if (copySelected) {
+        copySelected.addEventListener('click', copySelectedVerse);
+    }
+
+    // --- Share Button Functionality ---
+    if (shareSelectedTop) {
+        shareSelectedTop.addEventListener('click', () => {
+            if (shareOptionsTop) {
+                shareOptionsTop.style.display = shareOptionsTop.style.display === 'none' ? 'flex' : 'none';
+            }
+        });
+    }
+    if (shareSelected) {
+        shareSelected.addEventListener('click', () => {
+            if (shareOptions) {
+                shareOptions.style.display = shareOptions.style.display === 'none' ? 'flex' : 'none';
+            }
+        });
+    }
+
+    function shareContent(platform, content, url = window.location.href) {
+        let shareLink = '';
+        const encodedContent = encodeURIComponent(content.trim());
+        const encodedUrl = encodeURIComponent(url);
+
+        switch (platform) {
+            case 'facebook':
+                shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+                break;
+            case 'x':
+                shareLink = `https://twitter.com/intent/tweet?text=${encodedContent}&url=${encodedUrl}`;
+                break;
+            case 'reddit':
+                shareLink = `https://www.reddit.com/submit?title=${encodeURIComponent('Shared from AVA Bible App')}&text=${encodedContent}`;
+                break;
+            case 'email':
+                shareLink = `mailto:?subject=Shared Content from AVA Bible App&body=${encodedContent}\n\nRead more at: ${url}`;
+                break;
+            case 'google-docs':
+            case 'word':
+                alert('For Google Docs/Word, please copy the content using "Copy Selected Verse" and paste it into a new document.');
+                return;
+            case 'text':
+                shareLink = `sms:?body=${encodedContent}`;
+                break;
+            default:
+                console.warn(`Unsupported share platform: ${platform}`);
+                return;
+        }
+
+        if (shareLink) {
+            window.open(shareLink, '_blank');
+        }
+    }
+
+    answerDisplay.addEventListener('click', (event) => {
+        const link = event.target.closest('.share-options a');
+        if (link) {
+            event.preventDefault();
+            const contentToShare = answerDisplay.textContent || '';
+            const platformId = link.id.toLowerCase().replace(/top$/, '');
+
+            if (platformId.includes('facebook')) shareContent('facebook', contentToShare);
+            else if (platformId.includes('x')) shareContent('x', contentToShare);
+            else if (platformId.includes('reddit')) shareContent('reddit', contentToShare);
+            else if (platformId.includes('googledocs')) shareContent('google-docs', contentToShare);
+            else if (platformId.includes('word')) shareContent('word', contentToShare);
+            else if (platformId.includes('email')) shareContent('email', contentToShare);
+            else if (platformId.includes('text')) shareContent('text', contentToShare);
+        }
+    });
+
+    document.querySelectorAll('#shareOptionsTop a, #shareOptions a').forEach(link => {
+        link.addEventListener('click', (event) => {
+            event.preventDefault();
+            const contentToShare = answerDisplay.textContent || '';
+            const platformId = event.target.id.toLowerCase().replace(/top$/, '');
+
+            if (platformId.includes('facebook')) shareContent('facebook', contentToShare);
+            else if (platformId.includes('x')) shareContent('x', contentToShare);
+            else if (platformId.includes('reddit')) shareContent('reddit', contentToShare);
+            else if (platformId.includes('googledocs')) shareContent('google-docs', contentToShare);
+            else if (platformId.includes('word')) shareContent('word', contentToShare);
+            else if (platformId.includes('email')) shareContent('email', contentToShare);
+            else if (platformId.includes('text')) shareContent('text', contentToShare);
+        });
+    });
+
+
+    // --- Audio/Text-to-Speech ---
+    const audioButton = document.getElementById('audioButton');
+    if (audioButton) {
+        audioButton.addEventListener('click', () => {
+            const contentToRead = answerDisplay.textContent;
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(contentToRead);
+                speechSynthesis.speak(utterance);
+            } else {
+                alert('Sorry, your browser does not support text-to-speech.');
+            }
+        });
+    }
+
+
+    // --- Core Bible Search Functionality (Internal API Call) ---
+    async function fetchBibleVerse(query) {
+        answerDisplay.innerHTML = '<p style="text-align: center;">Searching Bible...</p>';
+        try {
+            const verseMatch = query.match(/^(\d?\s*[A-Za-z]+)\s*(\d+)(?::(\d+)(?:-(\d+))?)?(\s+[A-Za-z0-9]+)?$/i);
+            let formattedApiQuery = '';
+            let translation = currentBibleTranslation;
+
+            if (verseMatch) {
+                const bookAbbrOrName = verseMatch[1].trim().toLowerCase();
+                const chapter = parseInt(verseMatch[2]);
+                const startVerse = verseMatch[3] ? parseInt(verseMatch[3]) : null;
+                const endVerse = verseMatch[4] ? parseInt(verseMatch[4]) : null;
+                const requestedTranslation = verseMatch[5] ? verseMatch[5].trim().toLowerCase() : '';
+
+                const foundBook = bibleBooks.find(b => 
+                    b.name.toLowerCase() === bookAbbrOrName || b.abbr.includes(bookAbbrOrName)
+                );
+
+                if (!foundBook) {
+                    throw new Error(`Unknown Bible book: "${bookAbbrOrName}".`);
+                }
+
+                if (chapter < 1 || chapter > foundBook.chapters) {
+                    throw new Error(`Chapter ${chapter} does not exist in ${foundBook.name}.`);
+                }
+
+                let apiBookName = foundBook.name.toLowerCase().replace(/\s/g, '');
+                if (apiBookName.startsWith('1-') || apiBookName.startsWith('2-') || apiBookName.startsWith('3-')) {
+                     apiBookName = apiBookName.replace('-', '');
+                }
+
+                if (startVerse && endVerse) {
+                    formattedApiQuery = `${apiBookName}${chapter}.${startVerse}-${endVerse}`;
+                } else if (startVerse) {
+                    formattedApiQuery = `${apiBookName}${chapter}.${startVerse}`;
+                } else {
+                    formattedApiQuery = `${apiBookName}${chapter}`;
+                }
+
+                currentBibleBookName = foundBook.name;
+                currentBibleChapter = chapter;
+
+                const supportedApiTranslations = ['kjv', 'web', 'asv'];
+                if (requestedTranslation && supportedApiTranslations.includes(requestedTranslation)) {
+                    translation = requestedTranslation;
+                    currentBibleTranslation = translation;
+                } else if (requestedTranslation && ['nasb', 'nasb95'].includes(requestedTranslation)) {
+                     console.warn(`Translation "${requestedTranslation.toUpperCase()}" not directly supported by bible-api.com. Defaulting to KJV.`);
+                     translation = 'kjv';
+                     currentBibleTranslation = 'kjv';
+                }
+
+            } else {
+                formattedApiQuery = query.toLowerCase().replace(/[^a-z0-9]/g, '');
+                console.warn("Query does not match standard book chapter:verse format. Attempting basic search which may not yield results from bible-api.com for topics.");
+                currentBibleBookName = '';
+                currentBibleChapter = 0;
+            }
+
+            if (!formattedApiQuery) {
+                throw new Error("Invalid Bible query. Please try 'John 3:16' or 'Genesis 1'.");
+            }
+            
+            const response = await fetch(`https://bible-api.com/${formattedApiQuery}?translation=${translation}`);
+            
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error(`Verse not found for query "${query}". Please check the spelling or reference.`);
+                }
+                throw new Error(`HTTP error! status: ${response.status} for query: "${query}"`);
+            }
+
+            const data = await response.json();
+
+            if (data.verses && data.verses.length > 0) {
+                let resultHtml = `<h2>${data.reference} (${data.translation_name ? data.translation_name.toUpperCase() : translation.toUpperCase()})</h2>`;
+                data.verses.forEach(verse => {
+                    resultHtml += `<p><strong>${verse.verse}</strong> ${verse.text}</p>`;
+                });
+                answerDisplay.innerHTML = resultHtml;
+            } else {
+                answerDisplay.innerHTML = `<p style="text-align: center;">No Bible verses found for "${query}". Please try a more specific reference like "John 3:16" or "Gen 1:1".</p>`;
+                currentBibleBookName = '';
+                currentBibleChapter = 0;
+            }
+
+        } catch (error) {
+            console.error('Error fetching Bible verse:', error);
+            answerDisplay.innerHTML = `<p style="text-align: center; color: red;">Error: ${error.message}. Please check your query or try again later.</p>`;
+            currentBibleBookName = '';
+            currentBibleChapter = 0;
+        }
+    }
+
+    // Main search button event listener
+    if (searchButton) {
+        searchButton.addEventListener('click', () => {
+            const query = questionInput.value.trim();
+            if (query) {
+                fetchBibleVerse(query);
+            } else {
+                answerDisplay.innerHTML = '<p style="text-align: center;">Please enter a Bible verse or topic to search.</p>';
+            }
+        });
+    }
+
+    // --- Hotlinking Verses in Devotional (and any future loaded content) ---
+    function makeVersesClickable() {
+        const verseRegex = /(\b(?:[123]\s?[A-Z][a-z]+|[A-Z][a-z]+)\s+\d+(?::\d+(?:-\d+)?)?)(?:\s+(?:NASB95|KJV|ASV|WEB))?\b/gi;
+        
+        const contentDiv = answerDisplay;
+        let htmlContent = contentDiv.innerHTML;
+
+        // FIXED: The problematic regex causing the SyntaxError was on this line.
+        // Replaced `/(<a|<strong|<h)[^>]*>.*<\/a>|<\/strong>|<\/h>)/i.test(match)`
+        // with a simpler, corrected check for HTML tags.
+        let newHtmlContent = htmlContent.replace(verseRegex, (match) => {
+            if (/<[^>]+>/.test(match)) { // Check if 'match' itself contains any HTML tag
+                return match; // If it does, don't re-wrap it (it's already part of an HTML structure)
+            }
+            return `<a href="#" class="devotional-verse-link" data-verse="${match}">${match}</a>`;
+        });
+        contentDiv.innerHTML = newHtmlContent;
+    }
+
+    answerDisplay.addEventListener('click', (event) => {
+        const link = event.target.closest('.devotional-verse-link');
+        if (link) {
+            event.preventDefault();
+            const verseQuery = link.dataset.verse;
+            openVerseInMainApp(verseQuery);
+        }
+    });
+
+    async function openVerseInMainApp(verseQuery) {
+        const cleanedQuery = verseQuery.replace(/\s+(NASB95|KJV|ASV|WEB)$/i, '').trim(); 
+        await fetchBibleVerse(cleanedQuery);
+    }
+
+    // --- BIBLE CHAPTER NAVIGATION FUNCTIONS ---
+    async function goToNextBibleChapter() {
+        if (!currentBibleBookName || currentBibleChapter === 0) {
+            alert('Please search for a Bible verse or chapter first to enable chapter navigation.');
+            return;
+        }
+
+        const currentBookIndex = bibleBooks.findIndex(book => book.name === currentBibleBookName);
+        if (currentBookIndex === -1) {
+            alert('Current book not found in Bible data for navigation.');
+            return;
+        }
+
+        let nextChapter = currentBibleChapter + 1;
+        let nextBookIndex = currentBookIndex;
+
+        if (nextChapter > bibleBooks[currentBookIndex].chapters) {
+            nextBookIndex++;
+            nextChapter = 1;
+
+            if (nextBookIndex >= bibleBooks.length) {
+                alert('You are at the end of the Bible! Looping to Genesis 1.');
+                nextBookIndex = 0;
+                nextChapter = 1;
+            }
+        }
+
+        const nextBookName = bibleBooks[nextBookIndex].name;
+        const query = `${nextBookName} ${nextChapter}`;
+        await fetchBibleVerse(query);
+    }
+
+    async function goToPreviousBibleChapter() {
+        if (!currentBibleBookName || currentBibleChapter === 0) {
+            alert('Please search for a Bible verse or chapter first to enable chapter navigation.');
+            return;
+        }
+
+        const currentBookIndex = bibleBooks.findIndex(book => book.name === currentBibleBookName);
+        if (currentBookIndex === -1) {
+            alert('Current book not found in Bible data for navigation.');
+            return;
+        }
+
+        let prevChapter = currentBibleChapter - 1;
+        let prevBookIndex = currentBookIndex;
+
+        if (prevChapter < 1) {
+            prevBookIndex--;
+
+            if (prevBookIndex < 0) {
+                alert('You are at the beginning of the Bible! Looping to Revelation last chapter.');
+                prevBookIndex = bibleBooks.length - 1;
+            }
+            prevChapter = bibleBooks[prevBookIndex].chapters;
+        }
+
+        const prevBookName = bibleBooks[prevBookIndex].name;
+        const query = `${prevBookName} ${prevChapter}`;
+        await fetchBibleVerse(query);
+    }
+
+    // --- Initial Setup Calls ---
+    populateDaySelect(); // Populate month and day dropdowns for devotional
+    yearDisplay.textContent = new Date().getFullYear(); // Set the current year
+    
+    // Set initial values for month and day selects to today's date
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1; // Month is 0-indexed (Jan is 0)
+    const currentDay = today.getDate();
+    monthSelect.value = currentMonth;
+    populateDaySelect(); // Repopulate daySelect for the current month after setting month
+    daySelect.value = currentDay;
+
+    // Start the app on the Bible search view initially
+    resetToBibleAppView(); 
+});
