@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 1; i <= 12; i++) {
                 const option = document.createElement('option');
                 option.value = i;
-                // Get month name for display
+                // Get month name for display (using current year for locale string)
                 option.text = new Date(new Date().getFullYear(), i - 1, 1).toLocaleString('default', { month: 'long' });
                 monthSelect.add(option);
             }
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const month = parseInt(monthSelect.value);
         const year = new Date().getFullYear(); // Get current year for accurate days in month
-        const daysInMonth = new Date(year, month, 0).getDate(); // Get days in selected month
+        const daysInMonth = new Date(year, month, 0).getDate(); // Get days in selected month (month parameter is 0-indexed for Date constructor)
 
         daySelect.innerHTML = ''; // Clear existing options
 
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function displayDevotional() {
         const formattedDate = getFormattedDate();
         const filename = `devotionals/${formattedDate}-devotional.txt`;
-        answerDisplay.innerHTML = '<p>Loading Daily Devotional...</p>'; // Show loading message
+        answerDisplay.innerHTML = '<p style="text-align: center;">Loading Daily Devotional...</p>'; // Show loading message
 
         try {
             const response = await fetch(filename);
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error loading devotional:', error);
-            answerDisplay.innerHTML = "<p style='text-align: center; color: red;'>Error loading devotional.</p><p style='text-align: center; color: red;'>Please check your internet connection or try again later.</p>";
+            answerDisplay.innerHTML = `<p style="text-align: center; color: red;">Error loading devotional.</p><p style="text-align: center; color: red;">Please check your internet connection or try again later.</p>`;
         }
     }
 
@@ -164,9 +164,13 @@ document.addEventListener('DOMContentLoaded', () => {
             daySelect.value = today.getDate();
 
             await displayDevotional(); // Load and display today's devotional
+            
+            // --- DEBUGGING CONSOLE LOG ---
+            console.log("Devotional loaded. Attempting to change button text to 'Bible App'."); 
             dailyDevotionalButton.textContent = 'Bible App'; // Change button text
         } else {
             // Current state is "Bible App", so switch back to Bible view
+            console.log("Switching to Bible App view.");
             resetToBibleAppView();
         }
     });
@@ -283,12 +287,11 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (platformId.includes('text')) shareContent('text', contentToShare);
         }
     });
-    // You might also need listeners on the fixed share links if they are not inside answerDisplay
-    // Example for top links outside answerDisplay:
+    // Attach listeners to the static share links outside answerDisplay
     document.querySelectorAll('#shareOptionsTop a, #shareOptions a').forEach(link => {
         link.addEventListener('click', (event) => {
             event.preventDefault();
-            const contentToShare = answerDisplay.textContent || ''; // Or use a specific verse if copied
+            const contentToShare = answerDisplay.textContent || ''; // Or adapt to share current verse selection if available
             const platformId = event.target.id.toLowerCase().replace(/top$/, '');
 
             if (platformId.includes('facebook')) shareContent('facebook', contentToShare);
@@ -319,8 +322,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Previous/Next Day/Chapter Buttons (for Devotional and general navigation) ---
     if (prevChapterTop) prevChapterTop.addEventListener('click', prevDay); // For devotional previous day
     if (nextChapterTop) nextChapterTop.addEventListener('click', nextDay); // For devotional next day
-    // If you also want these for Bible chapters, we'll need separate logic
-    // For now, these operate on the devotional dates.
+    // If you also have prevChapter and nextChapter at the bottom and want them to navigate days,
+    // you would add listeners like:
+    // if (prevChapter) prevChapter.addEventListener('click', prevDay);
+    // if (nextChapter) nextChapter.addEventListener('click', nextDay);
 
 
     // --- Core Bible Search Functionality (Internal API Call) ---
@@ -328,10 +333,10 @@ document.addEventListener('DOMContentLoaded', () => {
         answerDisplay.innerHTML = '<p style="text-align: center;">Searching Bible...</p>';
         try {
             // Regex to extract book, chapter, verse(s) and potentially translation
-            // This is a more robust parser than before, but still basic.
-            // Example: "John 3:16", "Gen 1:1-5", "Psalm 23", "Romans 8"
+            // This regex supports various formats like "John 3:16", "Gen 1:1-5", "Psalm 23", "Romans 8"
+            // It tries to capture: (Optional Number) BookName (Optional Chapter:Verse-Verse) (Optional Translation)
             const verseMatch = query.match(/^(\d?\s*[A-Za-z]+)\s*(\d+)(?::(\d+)(?:-(\d+))?)?(\s+[A-Za-z0-9]+)?$/i);
-            let formattedQuery = '';
+            let formattedApiQuery = '';
             let translation = 'kjv'; // Default translation
 
             if (verseMatch) {
@@ -341,43 +346,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 const endVerse = verseMatch[4];
                 const requestedTranslation = verseMatch[5] ? verseMatch[5].trim() : '';
 
-                // Map common book abbreviations (expand as needed)
+                // Basic mapping for common book abbreviations (expand this map as needed)
                 const bookMap = {
                     'gen': 'genesis', 'ex': 'exodus', 'lev': 'leviticus', 'num': 'numbers', 'deut': 'deuteronomy',
-                    'matt': 'matthew', 'mk': 'mark', 'lk': 'luke', 'jn': 'john', 'rom': 'romans',
-                    'cor': 'corinthians', 'rev': 'revelation', 'ps': 'psalm', 'prov': 'proverbs',
-                    // Add more as needed for your desired functionality
+                    'josh': 'joshua', 'judg': 'judges', 'ruth': 'ruth', '1sam': '1-samuel', '2sam': '2-samuel',
+                    '1kgs': '1-kings', '2kgs': '2-kings', '1chr': '1-chronicles', '2chr': '2-chronicles',
+                    'ezra': 'ezra', 'neh': 'nehemiah', 'est': 'esther', 'job': 'job', 'ps': 'psalm',
+                    'prov': 'proverbs', 'eccl': 'ecclesiastes', 'song': 'song-of-solomon', 'isa': 'isaiah',
+                    'jer': 'jeremiah', 'lam': 'lamentations', 'ezek': 'ezekiel', 'dan': 'daniel',
+                    'hosea': 'hosea', 'joel': 'joel', 'amos': 'amos', 'obad': 'obadiah', 'jonah': 'jonah',
+                    'mic': 'micah', 'nah': 'nahum', 'hab': 'habakkuk', 'zeph': 'zephaniah', 'hag': 'haggai',
+                    'zech': 'zechariah', 'mal': 'malachi',
+                    'matt': 'matthew', 'mk': 'mark', 'lk': 'luke', 'jn': 'john', 'acts': 'acts',
+                    'rom': 'romans', '1cor': '1-corinthians', '2cor': '2-corinthians', 'gal': 'galatians',
+                    'eph': 'ephesians', 'phil': 'philippians', 'col': 'colossians', '1thess': '1-thessalonians',
+                    '2thess': '2-thessalonians', '1tim': '1-timothy', '2tim': '2-timothy', 'titus': 'titus',
+                    'phlm': 'philemon', 'heb': 'hebrews', 'jas': 'james', '1pet': '1-peter', '2pet': '2-peter',
+                    '1jn': '1-john', '2jn': '2-john', '3jn': '3-john', 'jude': 'jude', 'rev': 'revelation'
                 };
-                const formattedBook = bookMap[book.toLowerCase()] || book;
+                const formattedBook = bookMap[book.toLowerCase()] || book.toLowerCase(); // Convert to lowercase for API
 
                 if (startVerse && endVerse) {
-                    formattedQuery = `${formattedBook}${chapter}.${startVerse}-${endVerse}`;
+                    formattedApiQuery = `${formattedBook}${chapter}.${startVerse}-${endVerse}`;
                 } else if (startVerse) {
-                    formattedQuery = `${formattedBook}${chapter}.${startVerse}`;
+                    formattedApiQuery = `${formattedBook}${chapter}.${startVerse}`;
                 } else {
-                    formattedQuery = `${formattedBook}${chapter}`; // Fetch entire chapter
+                    formattedApiQuery = `${formattedBook}${chapter}`; // Fetch entire chapter
                 }
 
                 // Check for requested translation (bible-api.com supports kjv, web, asv)
-                if (requestedTranslation) {
-                    const supportedTranslations = ['kjv', 'web', 'asv', 'nasb', 'nasb95']; // Add more if API supports
-                    if (supportedTranslations.includes(requestedTranslation.toLowerCase())) {
-                        translation = requestedTranslation.toLowerCase();
-                    }
+                const supportedTranslations = ['kjv', 'web', 'asv']; // These are the main ones from bible-api.com
+                if (requestedTranslation && supportedTranslations.includes(requestedTranslation.toLowerCase())) {
+                    translation = requestedTranslation.toLowerCase();
+                } else if (requestedTranslation && ['nasb', 'nasb95'].includes(requestedTranslation.toLowerCase())) {
+                     // bible-api.com doesn't directly support NASB, so default to KJV or notify
+                     console.warn(`Translation "${requestedTranslation}" not directly supported by bible-api.com. Defaulting to KJV.`);
+                     // Or you could alert the user: alert(`NASB is not available. Showing KJV for ${query}.`);
+                     translation = 'kjv';
                 }
             } else {
-                // If it's not a direct verse reference, try simple query for general search (might not work well with simple API)
-                formattedQuery = query.replace(/[\s.,;:]/g, '').toLowerCase();
+                // If it's not a direct verse reference, try simple query for general search (might not work well with this API structure)
+                // For broader searches or keywords, a different API or a local index would be needed.
+                formattedApiQuery = query.toLowerCase().replace(/[^a-z0-9]/g, ''); // Remove non-alphanumeric for very basic query
             }
 
-            if (!formattedQuery) {
+            if (!formattedApiQuery) {
                 throw new Error("Invalid Bible query format. Please try 'John 3:16' or 'Genesis 1'.");
             }
 
-            const response = await fetch(`https://bible-api.com/${formattedQuery}?translation=${translation}`);
+            const response = await fetch(`https://bible-api.com/${formattedApiQuery}?translation=${translation}`);
             
             if (!response.ok) {
-                // Check if the error is due to an invalid verse
                 if (response.status === 404) {
                     throw new Error(`Verse not found for query "${query}". Please check the spelling or reference.`);
                 }
@@ -387,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (data.verses && data.verses.length > 0) {
-                let resultHtml = `<h2>${data.reference} (${data.translation_name.toUpperCase()})</h2>`;
+                let resultHtml = `<h2>${data.reference} (${data.translation_name ? data.translation_name.toUpperCase() : translation.toUpperCase()})</h2>`;
                 data.verses.forEach(verse => {
                     resultHtml += `<p><strong>${verse.verse}</strong> ${verse.text}</p>`;
                 });
@@ -419,7 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // More robust regex for identifying various verse formats.
         // Captures: (Optional Number) BookName (Optional Chapter:Verse-Verse)
         // E.g., "John 3:16", "1 Cor 13", "Psalm 23:1-6", "Rom 8"
-        const verseRegex = /(\b(?:[123]\s?[A-Z][a-z]+|[A-Z][a-z]+)\s+\d+(?::\d+(?:-\d+)?)?)\b/g;
+        const verseRegex = /(\b(?:[123]\s?[A-Z][a-z]+|[A-Z][a-z]+)\s+\d+(?::\d+(?:-\d+)?)?)(?:\s+NASB95|\s+KJV|\s+ASV|\s+WEB)?\b/gi; // Added optional translation suffix
         
         const contentDiv = answerDisplay;
         let htmlContent = contentDiv.innerHTML; // Get current HTML content
@@ -427,21 +446,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // Replace matched text with clickable links
         let newHtmlContent = htmlContent.replace(verseRegex, (match) => {
             // Avoid re-wrapping if already a link or part of an existing tag
-            if (match.includes('<a') || match.includes('</a>') || match.includes('<strong')) {
-                return match;
+            if (match.includes('<a') || match.includes('</a>') || match.includes('<strong') || match.includes('<h')) {
+                return match; // Don't re-process if already formatted
             }
             return `<a href="#" class="devotional-verse-link" data-verse="${match}">${match}</a>`;
         });
         contentDiv.innerHTML = newHtmlContent; // Update the content with links
 
-        // Add event listeners to the newly created links using delegation
-        // (Listeners are attached to answerDisplay and check for clicks on .devotional-verse-link)
-        // Note: This delegation might cause issues if not carefully managed when answerDisplay.innerHTML is reset frequently.
-        // It's better to add the listener once to answerDisplay and check the target.
-        // I've moved the listener creation outside this function, assuming it will be done once on DOMContentLoaded.
+        // No need to re-add event listeners here if using event delegation on answerDisplay
     }
 
-    // Event listener for dynamically added devotional verse links
+    // Event listener for dynamically added devotional verse links (delegated to answerDisplay)
     answerDisplay.addEventListener('click', (event) => {
         const link = event.target.closest('.devotional-verse-link');
         if (link) {
@@ -455,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Function to Handle Opening Verse in Main App via internal search
     async function openVerseInMainApp(verseQuery) {
         // Clean up the query for better parsing by fetchBibleVerse
-        const cleanedQuery = verseQuery.replace(/\s+(NASB95|KJV|ASV|WEB)$/i, '').trim();
+        const cleanedQuery = verseQuery.replace(/\s+(NASB95|KJV|ASV|WEB)$/i, '').trim(); 
         
         // Use our existing internal search
         await fetchBibleVerse(cleanedQuery);
@@ -475,7 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
     populateDaySelect(); // Repopulate daySelect for the current month after setting month
     daySelect.value = currentDay;
 
-    resetToBibleAppView(); // Start the app on the Bible search view
+    resetToBibleAppView(); // Start the app on the Bible search view initially
 
     // Event listeners for month/day select changes (for devotionals)
     monthSelect.addEventListener('change', () => {
