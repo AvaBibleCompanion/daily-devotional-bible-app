@@ -472,4 +472,170 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (requestedTranslation && supportedApiTranslations.includes(requestedTranslation)) {
                     translation = requestedTranslation;
                     currentBibleTranslation = translation;
-                } else if (requestedTranslation && ['nasb',
+                } else if (requestedTranslation && ['nasb', 'nasb95'].includes(requestedTranslation)) {
+                    console.warn(`Translation "${requestedTranslation.toUpperCase()}" not directly supported by bible-api.com. Defaulting to KJV.`);
+                    translation = 'kjv';
+                    currentBibleTranslation = 'kjv';
+                }
+
+            } else {
+                formattedApiQuery = query.toLowerCase().replace(/[^a-z0-9]/g, '');
+                console.warn("Query does not match standard book chapter:verse format. Attempting basic search which may not yield results from bible-api.com for topics.");
+                currentBibleBookName = '';
+                currentBibleChapter = 0;
+            }
+
+            if (!formattedApiQuery) {
+                throw new Error("Invalid Bible query. Please try 'John 3:16' or 'Genesis 1'.");
+            }
+
+            const response = await fetch(`https://bible-api.com/${formattedApiQuery}?translation=${translation}`);
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error(`Verse not found for query "${query}". Please check the spelling or reference.`);
+                }
+                throw new Error(`HTTP error! status: ${response.status} for query: "${query}"`);
+            }
+
+            const data = await response.json();
+
+            if (data.verses && data.verses.length > 0) {
+                let resultHtml = `<h2>${data.reference} (${data.translation_name ? data.translation_name.toUpperCase() : translation.toUpperCase()})</h2>`;
+                data.verses.forEach(verse => {
+                    resultHtml += `<p><strong>${verse.verse}</strong> ${verse.text}</p>`;
+                });
+                answerDisplay.innerHTML = resultHtml;
+            } else {
+                answerDisplay.innerHTML = `<p style="text-align: center;">No Bible verses found for "${query}". Please try a more specific reference like "John 3:16" or "Gen 1:1".</p>`;
+                currentBibleBookName = '';
+                currentBibleChapter = 0;
+            }
+
+        } catch (error) {
+            console.error('Error fetching Bible verse:', error);
+            answerDisplay.innerHTML = `<p style="text-align: center; color: red;">Error: ${error.message}. Please check your query or try again later.</p>`;
+            currentBibleBookName = '';
+            currentBibleChapter = 0;
+        }
+    }
+
+    // Main search button event listener
+    if (searchButton) {
+        searchButton.addEventListener('click', () => {
+            const query = questionInput.value.trim();
+            if (query) {
+                fetchBibleVerse(query);
+            } else {
+                answerDisplay.innerHTML = '<p style="text-align: center;">Please enter a Bible verse or topic to search.</p>';
+            }
+        });
+    }
+
+    // --- Hotlinking Verses in Devotional (and any future loaded content) ---
+    function makeVersesClickable() {
+        const verseRegex = /(\b(?:[123]\s?[A-Z][a-z]+|[A-Z][a-z]+)\s+\d+(?::\d+(?:-\d+)?)?)(?:\s+(?:NASB95|KJV|ASV|WEB))?\b/gi;
+
+        const contentDiv = answerDisplay;
+        let htmlContent = contentDiv.innerHTML;
+
+        let newHtmlContent = htmlContent.replace(verseRegex, (match) => {
+            if (/<[^>]+>/.test(match)) {
+                return match;
+            }
+            return `<a href="#" class="devotional-verse-link" data-verse="${match}">${match}</a>`;
+        });
+        contentDiv.innerHTML = newHtmlContent;
+    }
+
+    answerDisplay.addEventListener('click', (event) => {
+        const link = event.target.closest('.devotional-verse-link');
+        if (link) {
+            event.preventDefault();
+            const verseQuery = link.dataset.verse;
+            openVerseInMainApp(verseQuery);
+        }
+    });
+
+    async function openVerseInMainApp(verseQuery) {
+        const cleanedQuery = verseQuery.replace(/\s+(NASB95|KJV|ASV|WEB)$/i, '').trim(); 
+        await fetchBibleVerse(cleanedQuery);
+    }
+
+    // --- BIBLE CHAPTER NAVIGATION FUNCTIONS ---
+    async function goToNextBibleChapter() {
+        if (!currentBibleBookName || currentBibleChapter === 0) {
+            alert('Please search for a Bible verse or chapter first to enable chapter navigation.');
+            return;
+        }
+
+        const currentBookIndex = bibleBooks.findIndex(book => book.name === currentBibleBookName);
+        if (currentBookIndex === -1) {
+            alert('Current book not found in Bible data for navigation.');
+            return;
+        }
+
+        let nextChapter = currentBibleChapter + 1;
+        let nextBookIndex = currentBookIndex;
+
+        if (nextChapter > bibleBooks[currentBookIndex].chapters) {
+            nextBookIndex++;
+            nextChapter = 1;
+
+            if (nextBookIndex >= bibleBooks.length) {
+                alert('You are at the end of the Bible! Looping to Genesis 1.');
+                nextBookIndex = 0;
+                nextChapter = 1;
+            }
+        }
+
+        const nextBookName = bibleBooks[nextBookIndex].name;
+        const query = `${nextBookName} ${nextChapter}`;
+        await fetchBibleVerse(query);
+    }
+
+    async function goToPreviousBibleChapter() {
+        if (!currentBibleBookName || currentBibleChapter === 0) {
+            alert('Please search for a Bible verse or chapter first to enable chapter navigation.');
+            return;
+        }
+
+        const currentBookIndex = bibleBooks.findIndex(book => book.name === currentBibleBookName);
+        if (currentBookIndex === -1) {
+            alert('Current book not found in Bible data for navigation.');
+            return;
+        }
+
+        let prevChapter = currentBibleChapter - 1;
+        let prevBookIndex = currentBookIndex;
+
+        if (prevChapter < 1) {
+            prevBookIndex--;
+
+            if (prevBookIndex < 0) {
+                alert('You are at the beginning of the Bible! Looping to Revelation last chapter.');
+                prevBookIndex = bibleBooks.length - 1;
+            }
+            prevChapter = bibleBooks[prevBookIndex].chapters;
+        }
+
+        const prevBookName = bibleBooks[prevBookIndex].name;
+        const query = `${prevBookName} ${prevChapter}`;
+        await fetchBibleVerse(query);
+    }
+
+    // --- Initial Setup Calls ---
+    populateDaySelect(); // Populate month and day dropdowns for devotional
+    yearDisplay.textContent = new Date().getFullYear(); // Set the current year
+
+    // Set initial values for month and day selects to today's date
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1; // Month is 0-indexed (Jan is 0)
+    const currentDay = today.getDate();
+    monthSelect.value = currentMonth;
+    populateDaySelect(); // Repopulate daySelect for the current month after setting month
+    daySelect.value = currentDay;
+
+    // Start the app on the Bible search view initially
+    resetToBibleAppView(); 
+});
