@@ -48,6 +48,7 @@ body {
     border-radius: 5px;
     cursor: pointer;
     font-size: 0.9em;
+    white-space: nowrap; /* Prevent button text from wrapping */
 }
 
 .top-bar button:hover {
@@ -68,6 +69,7 @@ body {
     gap: 10px;
     margin-bottom: 10px; /* Space below if wrapped */
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .pill {
@@ -159,6 +161,7 @@ body {
     border-radius: 5px;
     cursor: pointer;
     font-size: 0.9em;
+    white-space: nowrap; /* Prevent button text from wrapping */
 }
 
 .chapter-navigation button:hover {
@@ -213,10 +216,21 @@ body {
     color: #333;
 }
 
-/* Dark Mode styles (initial idea, will need JavaScript to toggle) */
+/* Hotlinked verses in devotional */
+.devotional-verse-link {
+    color: #007bff; /* A distinct color for clickable verses */
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.devotional-verse-link:hover {
+    color: #0056b3;
+}
+
+/* Dark Mode styles (controlled by JS toggling 'dark-mode' class on body) */
 body.dark-mode {
     background-color: #333;
-    color: #f4f4f4;
+    color: #f4f4f4; /* Light text in dark mode */
 }
 
 body.dark-mode .container {
@@ -235,8 +249,10 @@ body.dark-mode #questionInput,
 body.dark-mode .search-container button,
 body.dark-mode .chapter-navigation button,
 body.dark-mode #answerDisplay,
-body.dark-mode #answerDisplay h2 {
-    color: #f4f4f4;
+body.dark-mode #answerDisplay h2,
+body.dark-mode #answerDisplay p,
+body.dark-mode #answerDisplay strong {
+    color: #f4f4f4; /* Ensure all text within display is light */
 }
 
 body.dark-mode .orange-text {
@@ -254,10 +270,15 @@ body.dark-mode .chapter-navigation button {
 }
 body.dark-mode .pill {
     background-color: #555;
+    color: #f4f4f4; /* Text color for pills in dark mode */
+}
+body.dark-mode .pill select {
+    color: #f4f4f4; /* Text color for select options in pills */
 }
 body.dark-mode #questionInput {
     background-color: #555;
     border-color: #666;
+    color: #f4f4f4; /* Input text color in dark mode */
 }
 body.dark-mode #answerDisplay {
     background-color: #555;
@@ -266,4 +287,11 @@ body.dark-mode #answerDisplay {
 }
 body.dark-mode #answerDisplay h2 {
     border-bottom-color: #666;
+}
+
+body.dark-mode .devotional-verse-link {
+    color: #ADD8E6; /* Light blue for links in dark mode */
+}
+body.dark-mode .devotional-verse-link:hover {
+    color: #87CEFA;
 }
